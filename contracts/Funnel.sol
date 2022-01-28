@@ -1,9 +1,9 @@
 //SPDX-License-Identifier: Unlicense
 pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts/utils/structs/EnumerableMap.sol";
-
 contract Funnel {
+    
+    event PaymentMade(address from, uint storeId, uint productId);
 
     mapping(uint => address payable) public storeAddresses;
     mapping(uint => uint) public storeVolume;
@@ -44,6 +44,8 @@ contract Funnel {
         address payable storeAddress = storeAddresses[storeId];
         storeAddress.transfer(msg.value);
         storeVolume[storeId]+=msg.value;
+
+        emit PaymentMade(msg.sender, storeId, productId);
 
         return true;
     }
