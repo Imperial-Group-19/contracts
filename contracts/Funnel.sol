@@ -6,17 +6,9 @@ pragma solidity ^0.8.0;
 contract Funnel {
     //TODO: think about Proxy Contracts-- why use them?
     //--- EVENTS ---
-    event PaymentMade(address from, uint256 storeId, uint256 productId);
+    event PaymentMade(address from, address storeAddress, uint256 productId);
 
     //--- DATA_STRUCTURES / MEMBERS ---
-    uint256 noOfStores;
-    //TODO: have another mapping that keeps track of stores using an index.
-    //TODO: consider making this `address payable => bool` so we can check if
-    //      msg.sender is a store.
-    mapping(uint256 => address payable) public storeAddresses;
-    /* make a Store struct so we don't have to manage the state of a store by
-        managing the indexes of three separate mappings-- seems error prone  */
-    //TODO: add modifiers for functions.
     struct Product {
         uint256 _productId;
         uint256 _price;
@@ -35,6 +27,14 @@ contract Funnel {
         uint256 _commision;
     }
 
+    uint256 noOfStores;
+    //TODO: consider making this `address payable => bool` so we can check if
+    //      msg.sender is a store.
+    mapping(address => Store) public stores;
+    /* make a Store struct so we don't have to manage the state of a store by
+        managing the indexes of three separate mappings-- seems error prone  */
+    //TODO: add modifiers for functions.
+
     //--- FUNCTIONS ---
     function totalStores() public view returns (uint256) {
         return noOfStores;
@@ -43,10 +43,14 @@ contract Funnel {
     function registerStore(address payable storeAddress)
         external
         returns (uint256)
-    {
+    {   
+        Store storage store = stores[storeAddress];
+        store._storeAddress = storeAddress;
+        store._storeTotalValue = 0;
+        store._noOfProducts = 0; 
+
         uint256 storeIndex = totalStores();
-        storeAddresses[storeIndex] = storeAddress;
-        noOfStores += 1;
+        noOfStores++;
 
         return storeIndex;
     }
@@ -54,41 +58,41 @@ contract Funnel {
     //TODO: implement protocol for removing a store.
 
     function makePayment(
-        uint256 storeId,
-        // uint amount
+        address payable storeAddress,
         uint256 productId
     ) external payable returns (bool) {
-        Product memory product = storeProducts[productId];
-        uint256 price = product.price;
+        Product memory product = stores[storeAddress].storeProducts[productId];
+        uint256 price = product._price;
         require(msg.value == price, "Pay the right price");
 
-        address payable storeAddress = storeAddresses[storeId];
+        // address payable storeAddress = stores[storeAddress]._storeAddress;
         storeAddress.transfer(msg.value);
-        storeVolume[storeId] += msg.value;
+        stores[storeAddress]._storeTotalValue += msg.value;
 
-        emit PaymentMade(msg.sender, storeId, productId);
+        emit PaymentMade(msg.sender, storeAddress, productId);
 
         return true;
     }
 
-    //TODO: figure out why MultiSigWallet implemented Transaction Confirmation.
+    // //TODO: figure out why MultiSigWallet implemented Transaction Confirmation.
 
-    //TODO: implement protocol for refunds
-    //TODO: implement protocol for affiliate payments
+    // //TODO: implement protocol for refunds
+    // //TODO: implement protocol for affiliate payments
 
-    function totalProducts(uint256 storeId) public view returns (uint256) {
-        return storeProductAmount[storeId];
+    function totalProducts(address storeAddress) public view returns (uint256) {
+        return stores[storeAddress]._noOfProducts;
     }
 
     //TODO: only stores should be able to create products.
-    function createProduct(uint256 storeId, uint256 price)
+    function createProduct(address storeAddress, uint256 price)
         external
         returns (uint256)
-    {
-        uint256 productIndex = totalProducts(storeId);
+    {   
+        uint256 productIndex = stores[storeAddress]._noOfProducts;
         Product memory product = Product(productIndex, price);
-        storeProductAmount[storeId] += 1;
-        storeProducts[productIndex] = product;
+
+        stores[storeAddress].storeProducts[productIndex] = product;
+        stores[storeAddress]._noOfProducts++;
 
         return productIndex;
     }
