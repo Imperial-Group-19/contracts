@@ -96,6 +96,28 @@ contract Funnel {
 
         return productIndex;
     }
-    //TODO: implement protocol for updating product price.
-    //TODO: implement protocol for removing products
+
+    function updateProduct(address storeAddress, uint256 productId, uint256 price) 
+        external
+    {
+        stores[storeAddress].storeProducts[productId]._price = price;
+    }
+
+    function updateStoreAddress(address storeAddress, address payable newStoreAddress) 
+        external
+    {   
+        Store storage store = stores[newStoreAddress];
+        store._storeAddress = newStoreAddress;
+        store._storeTotalValue = stores[storeAddress]._storeTotalValue;
+        store._noOfProducts = stores[storeAddress]._noOfProducts;
+
+        for(uint256 i; i<stores[storeAddress]._noOfProducts;  i++){
+            store.storeProducts[i] = stores[storeAddress].storeProducts[i]; 
+        }
+        
+        delete stores[storeAddress];
+
+    }
+
+
 }
