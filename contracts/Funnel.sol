@@ -13,7 +13,7 @@ pragma solidity ^0.8.0;
 contract Funnel {
     //=====================--------- EVENTS  ----------=====================
 
-    event PaymentMade(address from, address storeAddress, uint256 productId);
+    event PaymentMade(address from, address storeAddress, string productName);
 
     //=====================--------- DATA STRUCTURES  ----------=====================
     struct Product {
@@ -23,9 +23,10 @@ contract Funnel {
     //TODO: consider adding store name in bytes32?
     struct Store {
         //bytes32 _storeName;
+        address _storeOwner;
         address payable _storeAddress;
         uint256 _storeTotalValue;
-        Product[] storeProducts;
+        Product[] _storeProducts;
     }
 
     struct Affiliate {
@@ -37,13 +38,17 @@ contract Funnel {
 
     uint256 private noOfStores;
     mapping(address => Store) private stores;
-    mapping(address => bool) private isOwner;
     mapping(address => bool) private isAdmin;
 
     //=====================--------- MODIFIERS ----------=====================
 
-    modifier onlyStoreOwner() {
-        require(isOwner[msg.sender], "not owner");
+    //TODO: consider possibility of allowing for there to be multiple owners for a store?
+    modifier onlyStoreOwner(address storeAddress) {
+        //check that caller is owner of specific store.
+        require(
+            stores[storeAddress]._storeOwner == msg.sender,
+            "not store owner"
+        );
         _;
     }
 
@@ -63,11 +68,12 @@ contract Funnel {
 
     function registerStore(address payable storeAddress)
         external
+        onlyAdmin
         returns (uint256)
     {
         Store storage store = stores[storeAddress];
+        store._storeOwner = msg.sender;
         store._storeAddress = storeAddress;
-        isOwner[storeAddress] = true;
         store._storeTotalValue = 0;
 
         uint256 storeIndex = totalStores();
@@ -79,12 +85,12 @@ contract Funnel {
     function updateStoreAddress(
         address storeAddress,
         address payable newStoreAddress
-    ) external onlyStoreOwner {
+    ) external onlyStoreOwner(storeAddress) {
         Store storage store = stores[newStoreAddress];
         store._storeAddress = newStoreAddress;
         store._storeTotalValue = stores[storeAddress]._storeTotalValue;
 
-        store.storeProducts = stores[storeAddress].storeProducts;
+        store._storeProducts = stores[storeAddress]._storeProducts;
 
         delete stores[storeAddress];
     }
@@ -98,20 +104,22 @@ contract Funnel {
 
     //=====================--------- TRANSACTIONAL FUNCTIONS ----------=====================
 
-    function makePayment(address payable storeAddress, uint256 productId)
-        external
-        payable
-        returns (bool)
-    {
-        Product memory product = stores[storeAddress].storeProducts[productId];
-        uint256 price = product._price;
+    //TODO: allow payments to be made for multiple products, and not just one.
+    function makePayment(
+        address payable storeAddress,
+        string memory productName
+    ) external payable returns (bool) {
+        uint256 productIndex = getProductIndex(storeAddress, productName);
+        uint256 price = stores[storeAddress]
+            ._storeProducts[productIndex]
+            ._price;
         require(msg.value == price, "Pay the right price");
 
         // address payable storeAddress = stores[storeAddress]._storeAddress;
         storeAddress.transfer(msg.value);
         stores[storeAddress]._storeTotalValue += msg.value;
 
-        emit PaymentMade(msg.sender, storeAddress, productId);
+        emit PaymentMade(msg.sender, storeAddress, productName);
 
         return true;
     }
@@ -119,25 +127,33 @@ contract Funnel {
     //=====================--------- PRODUCT FUNCTIONS ----------=====================
 
     function totalProducts(address storeAddress) public view returns (uint256) {
-        return stores[storeAddress].storeProducts.length;
+        return stores[storeAddress]._storeProducts.length;
+    }
+
+    function getProducts(address storeAddress)
+        external
+        view
+        returns (Product[])
+    {
+        return stores[storeAddress]._storeProducts;
     }
 
     function createProduct(
         address storeAddress,
         string memory productName,
         uint256 price
-    ) external onlyStoreOwner {
+    ) external onlyStoreOwner(storeAddress) {
         Product memory product = Product(productName, price);
 
-        stores[storeAddress].storeProducts.push(product);
+        stores[storeAddress]._storeProducts.push(product);
     }
 
     function removeProduct(address storeAddress, string memory productName)
         external
-        onlyStoreOwner
+        onlyStoreOwner(storeAddress)
     {
         uint256 productIndex = getProductIndex(storeAddress, productName);
-        Product[] storage products = stores[storeAddress].storeProducts;
+        Product[] storage products = stores[storeAddress]._storeProducts;
 
         products[productIndex] = products[products.length - 1];
         products.pop();
@@ -149,10 +165,10 @@ contract Funnel {
         view
         returns (uint256)
     {
-        for (uint256 i; i < stores[storeAddress].storeProducts.length; i++) {
+        for (uint256 i; i < stores[storeAddress]._storeProducts.length; i++) {
             if (
                 keccak256(
-                    bytes(stores[storeAddress].storeProducts[i]._productName)
+                    bytes(stores[storeAddress]._storeProducts[i]._productName)
                 ) == keccak256(bytes(productName))
             ) {
                 return i;
@@ -162,11 +178,21 @@ contract Funnel {
         revert("Product not found in store");
     }
 
-    function updateProduct(
+    function getProductPrice(address storeAddress, string memory productName)
+        external
+        view
+        returns (uint256)
+    {
+        uint256 productIndex = getProductIndex(storeAddress, productName);
+        return stores[storeAddress]._storeProducts[productIndex]._price;
+    }
+
+    function updateProductPrice(
         address storeAddress,
-        uint256 productId,
+        string memory productName,
         uint256 price
-    ) external onlyStoreOwner {
-        stores[storeAddress].storeProducts[productId]._price = price;
+    ) external onlyStoreOwner(storeAddress) {
+        uint256 productIndex = getProductIndex(storeAddress, productName);
+        stores[storeAddress]._storeProducts[productIndex]._price = price;
     }
 }
