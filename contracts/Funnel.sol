@@ -16,10 +16,9 @@ contract Funnel {
 
     struct Store {
         address payable _storeAddress;
-        uint256 _storeTotalValue; //replacing mapping(uint256 => uint256) public storeVolume;
-        //n.b. we hadn't come up with a use for this mapping yet.
-        uint256 _noOfProducts; //replacing mapping(uint256 => uint256) public storeProductAmount;
-        mapping(uint256 => Product) storeProducts; //mapping was `public` when no in struct.
+        uint256 _storeTotalValue;
+        uint256 _noOfProducts;
+        mapping(uint256 => Product) storeProducts;
     }
 
     struct Affiliate {
@@ -28,12 +27,18 @@ contract Funnel {
     }
 
     uint256 noOfStores;
-    //TODO: consider making this `address payable => bool` so we can check if
-    //      msg.sender is a store.
+    //TODO: what do you think of the second mapping?
     mapping(address => Store) public stores;
+    mapping(address => bool) isOwner;
+
     /* make a Store struct so we don't have to manage the state of a store by
         managing the indexes of three separate mappings-- seems error prone  */
     //TODO: add modifiers for functions.
+
+    modifier onlyStoreOwner() {
+        require(isOwner[msg.sender], "not owner");
+        _;
+    }
 
     //--- FUNCTIONS ---
     function totalStores() public view returns (uint256) {
@@ -43,11 +48,12 @@ contract Funnel {
     function registerStore(address payable storeAddress)
         external
         returns (uint256)
-    {   
+    {
         Store storage store = stores[storeAddress];
         store._storeAddress = storeAddress;
+        isOwner[storeAddress] = true;
         store._storeTotalValue = 0;
-        store._noOfProducts = 0; 
+        store._noOfProducts = 0;
 
         uint256 storeIndex = totalStores();
         noOfStores++;
@@ -57,10 +63,11 @@ contract Funnel {
 
     //TODO: implement protocol for removing a store.
 
-    function makePayment(
-        address payable storeAddress,
-        uint256 productId
-    ) external payable returns (bool) {
+    function makePayment(address payable storeAddress, uint256 productId)
+        external
+        payable
+        returns (bool)
+    {
         Product memory product = stores[storeAddress].storeProducts[productId];
         uint256 price = product._price;
         require(msg.value == price, "Pay the right price");
@@ -74,8 +81,6 @@ contract Funnel {
         return true;
     }
 
-    // //TODO: figure out why MultiSigWallet implemented Transaction Confirmation.
-
     // //TODO: implement protocol for refunds
     // //TODO: implement protocol for affiliate payments
 
@@ -83,11 +88,12 @@ contract Funnel {
         return stores[storeAddress]._noOfProducts;
     }
 
-    //TODO: only stores should be able to create products.
+    //TODO: only store owners should be able to create products.
     function createProduct(address storeAddress, uint256 price)
         external
+        onlyStoreOwner
         returns (uint256)
-    {   
+    {
         uint256 productIndex = stores[storeAddress]._noOfProducts;
         Product memory product = Product(productIndex, price);
 
@@ -96,6 +102,13 @@ contract Funnel {
 
         return productIndex;
     }
+
     //TODO: implement protocol for updating product price.
     //TODO: implement protocol for removing products
+    function removeProduct(address storeAddress, uint256 productIndex)
+        external
+        onlyStoreOwner
+    {
+        delete stores[storeAddress].storeProducts[productIndex];
+    }
 }
