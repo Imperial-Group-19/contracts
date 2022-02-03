@@ -1,20 +1,28 @@
 //SPDX-License-Identifier: Unlicense
 pragma solidity ^0.8.0;
 
-//TODO: implement tests in Hardhat.
+//=====================--------- DEPLOYMENT TO-DOS:  ----------=====================
 
+//TODO: implement tests in Hardhat.
+//TODO: DEPLOY CONTRACT USING PROXY PATTERN.
+
+//=====================--------- ITERATION TO-DOS:  ----------=====================
+
+//TODO: implement protocol for refunds
+//TODO: implement protocol for affiliate payments
 contract Funnel {
-    //TODO: think about Proxy Contracts-- why use them?
-    //--- EVENTS ---
+    //=====================--------- EVENTS  ----------=====================
+
     event PaymentMade(address from, address storeAddress, uint256 productId);
 
-    //--- DATA_STRUCTURES / MEMBERS ---
+    //=====================--------- DATA STRUCTURES  ----------=====================
     struct Product {
         string _productName;
         uint256 _price;
     }
-
+    //TODO: consider adding store name in bytes32?
     struct Store {
+        //bytes32 _storeName;
         address payable _storeAddress;
         uint256 _storeTotalValue;
         Product[] storeProducts;
@@ -25,21 +33,30 @@ contract Funnel {
         uint256 _commision;
     }
 
-    uint256 noOfStores;
-    //TODO: what do you think of the second mapping?
-    mapping(address => Store) public stores;
-    mapping(address => bool) isOwner;
+    //=====================--------- STATE VARIABLES ----------=====================
 
-    /* make a Store struct so we don't have to manage the state of a store by
-        managing the indexes of three separate mappings-- seems error prone  */
-    //TODO: add modifiers for functions.
+    uint256 private noOfStores;
+    mapping(address => Store) private stores;
+    mapping(address => bool) private isOwner;
+    mapping(address => bool) private isAdmin;
+
+    //=====================--------- MODIFIERS ----------=====================
 
     modifier onlyStoreOwner() {
         require(isOwner[msg.sender], "not owner");
         _;
     }
 
-    //--- FUNCTIONS ---
+    modifier onlyAdmin() {
+        require(isAdmin[msg.sender], "not admin");
+        _;
+    }
+
+    //=====================--------- STORE FUNCTIONS ----------=====================
+    constructor() public {
+        isAdmin[msg.sender] = true;
+    }
+
     function totalStores() public view returns (uint256) {
         return noOfStores;
     }
@@ -59,7 +76,27 @@ contract Funnel {
         return storeIndex;
     }
 
-    //TODO: implement protocol for removing a store.
+    function updateStoreAddress(
+        address storeAddress,
+        address payable newStoreAddress
+    ) external onlyStoreOwner {
+        Store storage store = stores[newStoreAddress];
+        store._storeAddress = newStoreAddress;
+        store._storeTotalValue = stores[storeAddress]._storeTotalValue;
+
+        store.storeProducts = stores[storeAddress].storeProducts;
+
+        delete stores[storeAddress];
+    }
+
+    //TODO: consider making the resetrictions on this function more robust: multiple admins required?
+    function removeStore(address storeAddress) public onlyAdmin {
+        //currently only one admin
+        //currently only they can remove store.
+        delete stores[storeAddress];
+    }
+
+    //=====================--------- TRANSACTIONAL FUNCTIONS ----------=====================
 
     function makePayment(address payable storeAddress, uint256 productId)
         external
@@ -79,30 +116,26 @@ contract Funnel {
         return true;
     }
 
-    // //TODO: implement protocol for refunds
-    // //TODO: implement protocol for affiliate payments
+    //=====================--------- PRODUCT FUNCTIONS ----------=====================
 
     function totalProducts(address storeAddress) public view returns (uint256) {
         return stores[storeAddress].storeProducts.length;
     }
 
-    //TODO: only store owners should be able to create products.
-    function createProduct(address storeAddress, string memory productName, uint256 price)
-        external
-        onlyStoreOwner
-    {
+    function createProduct(
+        address storeAddress,
+        string memory productName,
+        uint256 price
+    ) external onlyStoreOwner {
         Product memory product = Product(productName, price);
 
         stores[storeAddress].storeProducts.push(product);
-
     }
 
-    //TODO: implement protocol for updating product price.
-    //TODO: implement protocol for removing products
     function removeProduct(address storeAddress, string memory productName)
         external
         onlyStoreOwner
-    {   
+    {
         uint256 productIndex = getProductIndex(storeAddress, productName);
         Product[] storage products = stores[storeAddress].storeProducts;
 
@@ -110,41 +143,30 @@ contract Funnel {
         products.pop();
     }
 
+    //helper function for `removeProduct`
     function getProductIndex(address storeAddress, string memory productName)
-        internal 
+        internal
         view
         returns (uint256)
-    {   
-
-        for(uint256 i; i<stores[storeAddress].storeProducts.length;  i++){
-            if(keccak256(bytes(stores[storeAddress].storeProducts[i]._productName)) == keccak256(bytes(productName)))
-            {   
+    {
+        for (uint256 i; i < stores[storeAddress].storeProducts.length; i++) {
+            if (
+                keccak256(
+                    bytes(stores[storeAddress].storeProducts[i]._productName)
+                ) == keccak256(bytes(productName))
+            ) {
                 return i;
             }
         }
 
         revert("Product not found in store");
-
     }
 
-    function updateProduct(address storeAddress, uint256 productId, uint256 price) 
-        external
-    {
+    function updateProduct(
+        address storeAddress,
+        uint256 productId,
+        uint256 price
+    ) external onlyStoreOwner {
         stores[storeAddress].storeProducts[productId]._price = price;
     }
-
-    function updateStoreAddress(address storeAddress, address payable newStoreAddress) 
-        external
-    {   
-        Store storage store = stores[newStoreAddress];
-        store._storeAddress = newStoreAddress;
-        store._storeTotalValue = stores[storeAddress]._storeTotalValue;
-
-        store.storeProducts = stores[storeAddress].storeProducts;
-        
-        delete stores[storeAddress];
-
-    }
-
-
 }
