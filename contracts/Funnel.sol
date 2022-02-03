@@ -10,15 +10,14 @@ contract Funnel {
 
     //--- DATA_STRUCTURES / MEMBERS ---
     struct Product {
-        uint256 _productId;
+        string _productName;
         uint256 _price;
     }
 
     struct Store {
         address payable _storeAddress;
         uint256 _storeTotalValue;
-        uint256 _noOfProducts;
-        mapping(uint256 => Product) storeProducts;
+        Product[] storeProducts;
     }
 
     struct Affiliate {
@@ -53,7 +52,6 @@ contract Funnel {
         store._storeAddress = storeAddress;
         isOwner[storeAddress] = true;
         store._storeTotalValue = 0;
-        store._noOfProducts = 0;
 
         uint256 storeIndex = totalStores();
         noOfStores++;
@@ -85,33 +83,50 @@ contract Funnel {
     // //TODO: implement protocol for affiliate payments
 
     function totalProducts(address storeAddress) public view returns (uint256) {
-        return stores[storeAddress]._noOfProducts;
+        return stores[storeAddress].storeProducts.length;
     }
 
     //TODO: only store owners should be able to create products.
-    function createProduct(address storeAddress, uint256 price)
+    function createProduct(address storeAddress, string memory productName, uint256 price)
         external
         onlyStoreOwner
-        returns (uint256)
     {
-        uint256 productIndex = stores[storeAddress]._noOfProducts;
-        Product memory product = Product(productIndex, price);
+        Product memory product = Product(productName, price);
 
-        stores[storeAddress].storeProducts[productIndex] = product;
-        stores[storeAddress]._noOfProducts++;
+        stores[storeAddress].storeProducts.push(product);
 
-        return productIndex;
     }
 
     //TODO: implement protocol for updating product price.
     //TODO: implement protocol for removing products
-    function removeProduct(address storeAddress, uint256 productIndex)
+    function removeProduct(address storeAddress, string memory productName)
         external
         onlyStoreOwner
-    {
-        delete stores[storeAddress].storeProducts[productIndex];
+    {   
+        uint256 productIndex = getProductIndex(storeAddress, productName);
+        Product[] storage products = stores[storeAddress].storeProducts;
+
+        products[productIndex] = products[products.length - 1];
+        products.pop();
     }
-    
+
+    function getProductIndex(address storeAddress, string memory productName)
+        internal 
+        view
+        returns (uint256)
+    {   
+
+        for(uint256 i; i<stores[storeAddress].storeProducts.length;  i++){
+            if(keccak256(bytes(stores[storeAddress].storeProducts[i]._productName)) == keccak256(bytes(productName)))
+            {   
+                return i;
+            }
+        }
+
+        revert("Product not found in store");
+
+    }
+
     function updateProduct(address storeAddress, uint256 productId, uint256 price) 
         external
     {
@@ -124,11 +139,8 @@ contract Funnel {
         Store storage store = stores[newStoreAddress];
         store._storeAddress = newStoreAddress;
         store._storeTotalValue = stores[storeAddress]._storeTotalValue;
-        store._noOfProducts = stores[storeAddress]._noOfProducts;
 
-        for(uint256 i; i<stores[storeAddress]._noOfProducts;  i++){
-            store.storeProducts[i] = stores[storeAddress].storeProducts[i]; 
-        }
+        store.storeProducts = stores[storeAddress].storeProducts;
         
         delete stores[storeAddress];
 
