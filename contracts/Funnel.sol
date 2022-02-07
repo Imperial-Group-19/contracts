@@ -13,7 +13,8 @@ pragma solidity ^0.8.0;
 contract Funnel {
     //=====================--------- EVENTS  ----------=====================
 
-    event PaymentMade(address from, address storeAddress, string[] productNames);
+    event PaymentMade(address customer, address storeAddress, string[] productNames);
+    event RefundMade(address customer, address storeAddress, string[] productNames);
 
     //=====================--------- DATA STRUCTURES  ----------=====================
     struct Product {
@@ -111,7 +112,7 @@ contract Funnel {
     function makePayment(
         address payable storeAddress,
         string[] memory productNames
-    ) external payable returns (bool) {
+    ) external payable {
 
         uint256 totalPrice;
 
@@ -126,13 +127,35 @@ contract Funnel {
         
         require(msg.value == totalPrice, "Pay the right price");
 
-        // address payable storeAddress = stores[storeAddress]._storeAddress;
         storeAddress.transfer(msg.value);
         stores[storeAddress]._storeTotalValue += msg.value;
 
         emit PaymentMade(msg.sender, storeAddress, productNames);
+    }
 
-        return true;
+    function processRefund(address storeAddress, string[] memory productNames, address payable customer)
+        external
+        payable
+        onlyStoreOwner(storeAddress)
+    {   
+        uint256 totalPrice;
+
+        for (uint256 i; i<productNames.length; i++)
+        {
+            uint256 productIndex = getProductIndex(storeAddress, productNames[i]);
+            uint256 price = stores[storeAddress]
+                ._storeProducts[productIndex]
+                ._price;
+            totalPrice+=price;
+        }
+
+        require(msg.value == totalPrice, "Incorrect refund amount");
+
+        customer.transfer(msg.value);
+        stores[storeAddress]._storeTotalValue -= msg.value;
+
+        emit RefundMade(customer, storeAddress, productNames);
+
     }
 
     //=====================--------- PRODUCT FUNCTIONS ----------=====================
