@@ -58,7 +58,7 @@ contract Funnel {
     }
 
     //=====================--------- STORE FUNCTIONS ----------=====================
-    constructor() public {
+    constructor() {
         isAdmin[msg.sender] = true;
     }
 
@@ -89,7 +89,7 @@ contract Funnel {
         Store storage store = stores[newStoreAddress];
         store._storeAddress = newStoreAddress;
         store._storeTotalValue = stores[storeAddress]._storeTotalValue;
-
+        store._storeOwner = stores[storeAddress]._storeOwner;
         store._storeProducts = stores[storeAddress]._storeProducts;
 
         delete stores[storeAddress];
@@ -100,6 +100,10 @@ contract Funnel {
         //currently only one admin
         //currently only they can remove store.
         delete stores[storeAddress];
+    }
+
+    function getStore(address storeAddress) external view returns (Store memory) {
+        return stores[storeAddress];
     }
 
     //=====================--------- TRANSACTIONAL FUNCTIONS ----------=====================
@@ -133,7 +137,7 @@ contract Funnel {
     function getProducts(address storeAddress)
         external
         view
-        returns (Product[])
+        returns (Product[] memory)
     {
         return stores[storeAddress]._storeProducts;
     }
