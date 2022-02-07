@@ -10,7 +10,7 @@ async function main() {
   // Workaround for bug where deployed address on Mumbai network is incorrect
   const txHash = funnel.deployTransaction.hash;
   console.log(`Tx hash: ${txHash}\nWaiting for transaction to be mined...`);
-  const txReceipt = await ethers.provider.waitForTransaction(txHash);
+  const txReceipt = await hre.ethers.provider.waitForTransaction(txHash);
 
   console.log("Funnel contract address:", txReceipt.contractAddress);
 }
