@@ -13,7 +13,7 @@ pragma solidity ^0.8.0;
 contract Funnel {
     //=====================--------- EVENTS  ----------=====================
 
-    event PaymentMade(address from, address storeAddress, string productName);
+    event PaymentMade(address from, address storeAddress, string[] productNames);
 
     //=====================--------- DATA STRUCTURES  ----------=====================
     struct Product {
@@ -108,22 +108,29 @@ contract Funnel {
 
     //=====================--------- TRANSACTIONAL FUNCTIONS ----------=====================
 
-    //TODO: allow payments to be made for multiple products, and not just one.
     function makePayment(
         address payable storeAddress,
-        string memory productName
+        string[] memory productNames
     ) external payable returns (bool) {
-        uint256 productIndex = getProductIndex(storeAddress, productName);
-        uint256 price = stores[storeAddress]
-            ._storeProducts[productIndex]
-            ._price;
-        require(msg.value == price, "Pay the right price");
+
+        uint256 totalPrice;
+
+        for (uint256 i; i<productNames.length; i++)
+        {
+            uint256 productIndex = getProductIndex(storeAddress, productNames[i]);
+            uint256 price = stores[storeAddress]
+                ._storeProducts[productIndex]
+                ._price;
+            totalPrice+=price;
+        }
+        
+        require(msg.value == totalPrice, "Pay the right price");
 
         // address payable storeAddress = stores[storeAddress]._storeAddress;
         storeAddress.transfer(msg.value);
         stores[storeAddress]._storeTotalValue += msg.value;
 
-        emit PaymentMade(msg.sender, storeAddress, productName);
+        emit PaymentMade(msg.sender, storeAddress, productNames);
 
         return true;
     }
