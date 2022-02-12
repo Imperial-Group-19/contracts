@@ -16,6 +16,15 @@ contract Funnel {
     event PaymentMade(address customer, address storeAddress, string[] productNames);
     event RefundMade(address customer, address storeAddress, string[] productNames);
 
+    event ProductCreated(address storeAddress, string productName, uint256 price);
+    event ProductUpdated(address storeAddress, string productName, uint256 newPrice);
+    event ProductRemoved(address storeAddress, string productName);
+
+    event StoreCreated(address storeAddress, address storeOwner);
+    event StoreUpdated(address storeAddress, address newStoreAddress);
+    event StoreRemoved(address storeAddress);
+
+
     //=====================--------- DATA STRUCTURES  ----------=====================
     struct Product {
         string _productName;
@@ -80,6 +89,8 @@ contract Funnel {
         uint256 storeIndex = totalStores();
         noOfStores++;
 
+        emit StoreCreated(storeAddress, msg.sender);
+
         return storeIndex;
     }
 
@@ -94,6 +105,8 @@ contract Funnel {
         store._storeProducts = stores[storeAddress]._storeProducts;
 
         delete stores[storeAddress];
+
+        emit StoreUpdated(storeAddress, newStoreAddress);
     }
 
     //TODO: consider making the resetrictions on this function more robust: multiple admins required?
@@ -101,6 +114,8 @@ contract Funnel {
         //currently only one admin
         //currently only they can remove store.
         delete stores[storeAddress];
+
+        emit StoreRemoved(storeAddress);
     }
 
     function getStore(address storeAddress) external view returns (Store memory) {
@@ -180,6 +195,8 @@ contract Funnel {
         Product memory product = Product(productName, price);
 
         stores[storeAddress]._storeProducts.push(product);
+
+        emit ProductCreated(storeAddress, productName, price);
     }
 
     function removeProduct(address storeAddress, string memory productName)
@@ -191,6 +208,8 @@ contract Funnel {
 
         products[productIndex] = products[products.length - 1];
         products.pop();
+
+        emit ProductRemoved(storeAddress, productName);
     }
 
     //helper function for `removeProduct`
@@ -228,5 +247,7 @@ contract Funnel {
     ) external onlyStoreOwner(storeAddress) {
         uint256 productIndex = getProductIndex(storeAddress, productName);
         stores[storeAddress]._storeProducts[productIndex]._price = price;
+
+        emit ProductUpdated(storeAddress, productName, price);
     }
 }
