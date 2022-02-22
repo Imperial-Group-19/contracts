@@ -11,8 +11,6 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 
 //=====================--------- ITERATION TO-DOS:  ----------=====================
 
-//TODO: implement protocol for refunds
-//TODO: implement protocol for affiliate payments
 contract Funnel is Ownable {
     //=====================--------- EVENTS  ----------=====================
 
@@ -29,13 +27,14 @@ contract Funnel is Ownable {
 
 
     //=====================--------- DATA STRUCTURES  ----------=====================
+    //TODO: update Product struct to capture the kind of product (e.g. 'main', or 'upsell')
+    //      it is
     struct Product {
         string _productName;
         uint256 _price;
     }
-    //TODO: consider adding store name in bytes32?
+
     struct Store {
-        //bytes32 _storeName;
         address _storeOwner;
         address payable _storeAddress;
         uint256 _storeTotalValue;
@@ -55,7 +54,6 @@ contract Funnel is Ownable {
 
     //=====================--------- MODIFIERS ----------=====================
 
-    //TODO: consider possibility of allowing for there to be multiple owners for a store?
     modifier onlyStoreOwner(address storeAddress) {
         //check that caller is owner of specific store.
         require(
@@ -74,6 +72,7 @@ contract Funnel is Ownable {
         return noOfStores;
     }
 
+    //TODO: implement transaction fee to deter spamming of this function.
     function registerStore(address payable storeAddress)
         external
         returns (uint256)
@@ -106,7 +105,6 @@ contract Funnel is Ownable {
         emit StoreUpdated(storeAddress, newStoreAddress);
     }
 
-    //TODO: consider making the resetrictions on this function more robust: multiple admins required?
     function removeStore(address storeAddress) public {
         //currently only one admin
         //currently only they can remove store.
@@ -144,6 +142,8 @@ contract Funnel is Ownable {
 
         emit PaymentMade(msg.sender, storeAddress, productNames);
     }
+
+    //TODO: implement protocol for affiliate payments
 
     function processRefund(address storeAddress, string[] memory productNames, address payable customer)
         external
