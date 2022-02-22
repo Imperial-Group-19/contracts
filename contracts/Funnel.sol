@@ -6,11 +6,14 @@ pragma solidity ^0.8.0;
 //TODO: implement tests in Hardhat.
 //TODO: DEPLOY CONTRACT USING PROXY PATTERN.
 
+// Import Ownable from the OpenZeppelin Contracts library
+import "@openzeppelin/contracts/access/Ownable.sol";
+
 //=====================--------- ITERATION TO-DOS:  ----------=====================
 
 //TODO: implement protocol for refunds
 //TODO: implement protocol for affiliate payments
-contract Funnel {
+contract Funnel is Ownable {
     //=====================--------- EVENTS  ----------=====================
 
     event PaymentMade(address customer, address storeAddress, string[] productNames);
@@ -62,11 +65,6 @@ contract Funnel {
         _;
     }
 
-    modifier onlyAdmin() {
-        require(isAdmin[msg.sender], "not admin");
-        _;
-    }
-
     //=====================--------- STORE FUNCTIONS ----------=====================
     constructor() {
         isAdmin[msg.sender] = true;
@@ -78,7 +76,6 @@ contract Funnel {
 
     function registerStore(address payable storeAddress)
         external
-        onlyAdmin
         returns (uint256)
     {
         Store storage store = stores[storeAddress];
@@ -110,7 +107,7 @@ contract Funnel {
     }
 
     //TODO: consider making the resetrictions on this function more robust: multiple admins required?
-    function removeStore(address storeAddress) public onlyAdmin {
+    function removeStore(address storeAddress) public {
         //currently only one admin
         //currently only they can remove store.
         delete stores[storeAddress];
