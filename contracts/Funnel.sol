@@ -174,7 +174,7 @@ contract Funnel is Ownable {
     }
 
     //=====================--------- PRODUCT FUNCTIONS ----------=====================
-
+    //TODO: REFACTORING. There's a ton of duplication in these functions.
     function totalProducts(address storeAddress) public view returns (uint256) {
         return stores[storeAddress]._storeProducts.length;
     }
@@ -241,6 +241,15 @@ contract Funnel is Ownable {
         return stores[storeAddress]._storeProducts[productIndex]._price;
     }
 
+    function getProductType(address storeAddress, string memory productName)
+        external
+        view
+        returns (ProductType)
+    {
+        uint256 productIndex = getProductIndex(storeAddress, productName);
+        return stores[storeAddress]._storeProducts[productIndex]._productType;
+    }
+
     function updateProductPrice(
         address storeAddress,
         string memory productName,
@@ -251,4 +260,5 @@ contract Funnel is Ownable {
 
         emit ProductUpdated(storeAddress, productName, price);
     }
+
 }
