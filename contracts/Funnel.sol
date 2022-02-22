@@ -241,6 +241,7 @@ contract Funnel is Ownable {
         return stores[storeAddress]._storeProducts[productIndex]._price;
     }
 
+    //TODO: think about: do we need to check productType in a transaction?
     function getProductType(address storeAddress, string memory productName)
         external
         view
@@ -249,6 +250,14 @@ contract Funnel is Ownable {
         uint256 productIndex = getProductIndex(storeAddress, productName);
         return stores[storeAddress]._storeProducts[productIndex]._productType;
     }
+    //TODO: DESIGN: what do we want to be able to do with product type?
+    /* 
+        presumably, we want things like:
+        - updating a product's type
+        right now we don't have relationships set up between products
+        i.e., i can say that product x is a main product and that product y is an upsell
+        but i can't say that y is an upsell for x.
+     */
 
     function updateProductPrice(
         address storeAddress,
