@@ -8,6 +8,8 @@ pragma solidity ^0.8.0;
 
 // Import Ownable from the OpenZeppelin Contracts library
 import "@openzeppelin/contracts/access/Ownable.sol";
+// Import enum type that maps different product types to fixed constants.
+import "./EnumProductTypeDeclaration.sol";
 
 //=====================--------- ITERATION TO-DOS:  ----------=====================
 
@@ -31,6 +33,7 @@ contract Funnel is Ownable {
     //      it is
     struct Product {
         string _productName;
+        ProductType _productType;
         uint256 _price;
     }
 
@@ -187,9 +190,10 @@ contract Funnel is Ownable {
     function createProduct(
         address storeAddress,
         string memory productName,
+        ProductType productType,
         uint256 price
     ) external onlyStoreOwner(storeAddress) {
-        Product memory product = Product(productName, price);
+        Product memory product = Product(productName, productType, price);
 
         stores[storeAddress]._storeProducts.push(product);
 
