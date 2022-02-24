@@ -82,7 +82,7 @@ contract Funnel is Ownable {
         returns (uint256)
     {
         //CHECK if a store has already been created with storeAddress
-        if(!(stores[storeAddress]._isStore)){ //n.b. every possible key has a mapping by default.
+        if((stores[storeAddress]._isStore)){ //n.b. every possible key has a mapping by default.
                                              // see https://ethereum.stackexchange.com/questions/13021/how-can-you-figure-out-if-a-certain-key-exists-in-a-mapping-struct-defined-insi
             revert("There's already a store with that address.");
         }
