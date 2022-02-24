@@ -6,7 +6,7 @@ pragma solidity ^0.8.0;
 //TODO: implement tests in Hardhat.
 //TODO: DEPLOY CONTRACT USING PROXY PATTERN.
 
-// Import Ownable from the OpenZeppelin Contracts library
+// Import from the OpenZeppelin Contracts library
 import "@openzeppelin/contracts/access/Ownable.sol";
 // Import enum type that maps different product types to fixed constants.
 import "./EnumProductTypeDeclaration.sol";
@@ -16,21 +16,37 @@ import "./EnumProductTypeDeclaration.sol";
 contract Funnel is Ownable {
     //=====================--------- EVENTS  ----------=====================
 
-    event PaymentMade(address customer, address storeAddress, string[] productNames);
-    event RefundMade(address customer, address storeAddress, string[] productNames);
+    event PaymentMade(
+        address customer,
+        address storeAddress,
+        string[] productNames
+    );
+    event RefundMade(
+        address customer,
+        address storeAddress,
+        string[] productNames
+    );
 
-    event ProductCreated(address storeAddress, string productName, uint256 price);
-    event ProductUpdated(address storeAddress, string productName, uint256 newPrice);
+    event ProductCreated(
+        address storeAddress,
+        string productName,
+        uint256 price
+    );
+    event ProductUpdated(
+        address storeAddress,
+        string productName,
+        uint256 newPrice
+    );
     event ProductRemoved(address storeAddress, string productName);
 
     event StoreCreated(address storeAddress, address storeOwner);
-    event StoreUpdated(address storeAddress, address newStoreAddress);
+    event StoreUpdated(address storeAddress, address newStoreAddress, address newStoreOwner);
     event StoreRemoved(address storeAddress);
 
+    event AffiliateRegistered(address storeAddress, address affiliateAddress);
 
     //=====================--------- DATA STRUCTURES  ----------=====================
-    //TODO: update Product struct to capture the kind of product (e.g. 'main', or 'upsell')
-    //      it is
+
     struct Product {
         string _productName;
         ProductType _productType;
@@ -42,12 +58,16 @@ contract Funnel is Ownable {
         address payable _storeAddress;
         uint256 _storeTotalValue;
         Product[] _storeProducts;
+        Affiliate[] _storeAffiliates;
+        /* not using a mapping because structs with nested mapping cannot be returned
+             in external functions */
+        uint256 _commisionRate;
         bool _isStore;
     }
 
     struct Affiliate {
-        address payable _affiliateAddress;
-        uint256 _commision;
+        address _affiliateAddress;
+        uint256 _affiliateTotalValue;
     }
 
     //=====================--------- STATE VARIABLES ----------=====================
@@ -77,19 +97,22 @@ contract Funnel is Ownable {
     }
 
     //TODO: implement transaction fee to deter spamming of this function.
-    function registerStore(address payable storeAddress)
+    // possibly: https://stackoverflow.com/questions/70146314/how-do-i-charge-a-transaction-fee-when-a-function-in-my-contract-is-executed
+    function registerStore(address payable storeAddress, uint commisionRate)
         external
         returns (uint256)
     {
         //CHECK if a store has already been created with storeAddress
-        if((stores[storeAddress]._isStore)){ //n.b. every possible key has a mapping by default.
-                                             // see https://ethereum.stackexchange.com/questions/13021/how-can-you-figure-out-if-a-certain-key-exists-in-a-mapping-struct-defined-insi
+        if ((stores[storeAddress]._isStore)) {
+            //n.b. every possible key has a mapping by default.
+            // see https://ethereum.stackexchange.com/questions/13021/how-can-you-figure-out-if-a-certain-key-exists-in-a-mapping-struct-defined-insi
             revert("There's already a store with that address.");
         }
         Store storage store = stores[storeAddress];
         store._storeOwner = msg.sender;
         store._storeAddress = storeAddress;
         store._storeTotalValue = 0;
+        store._commisionRate = commisionRate;
         store._isStore = true;
 
         uint256 storeIndex = totalStores();
@@ -109,11 +132,23 @@ contract Funnel is Ownable {
         store._storeTotalValue = stores[storeAddress]._storeTotalValue;
         store._storeOwner = stores[storeAddress]._storeOwner;
         store._storeProducts = stores[storeAddress]._storeProducts;
+        store._storeAffiliates = stores[storeAddress]._storeAffiliates;
         store._isStore = true;
 
         delete stores[storeAddress];
 
-        emit StoreUpdated(storeAddress, newStoreAddress);
+        emit StoreUpdated(storeAddress, newStoreAddress, store._storeOwner);
+    }
+
+    function getStoreBalance(address storeAddress)
+        external
+        view
+        returns (uint256)
+    {
+        if (!(stores[storeAddress]._isStore)) {
+            revert("There's no store associated with that address");
+        }
+        return stores[storeAddress]._storeTotalValue;
     }
 
     function removeStore(address storeAddress) public {
@@ -124,7 +159,11 @@ contract Funnel is Ownable {
         emit StoreRemoved(storeAddress);
     }
 
-    function getStore(address storeAddress) external view returns (Store memory) {
+    function getStore(address storeAddress)
+        external
+        view
+        returns (Store memory)
+    {
         return stores[storeAddress];
     }
 
@@ -134,18 +173,19 @@ contract Funnel is Ownable {
         address payable storeAddress,
         string[] memory productNames
     ) external payable {
-
         uint256 totalPrice;
 
-        for (uint256 i; i<productNames.length; i++)
-        {
-            uint256 productIndex = getProductIndex(storeAddress, productNames[i]);
+        for (uint256 i; i < productNames.length; i++) {
+            uint256 productIndex = getProductIndex(
+                storeAddress,
+                productNames[i]
+            );
             uint256 price = stores[storeAddress]
                 ._storeProducts[productIndex]
                 ._price;
-            totalPrice+=price;
+            totalPrice += price;
         }
-        
+
         require(msg.value == totalPrice, "Pay the right price");
 
         storeAddress.transfer(msg.value);
@@ -154,22 +194,67 @@ contract Funnel is Ownable {
         emit PaymentMade(msg.sender, storeAddress, productNames);
     }
 
-    //TODO: implement protocol for affiliate payments
+    // using https://ethereum.stackexchange.com/questions/114870/how-can-i-split-a-transaction-to-two-addresses-using-metamask
+    // PaymentSplitter contract from OpenZepp is more robust but way more complicated.
+    // there's also https://medium.com/coinmonks/implement-multi-send-on-ethereum-by-smart-contract-with-solidity-47e0bf82b60c
+    //  as some middle ground.
 
-    function processRefund(address storeAddress, string[] memory productNames, address payable customer)
-        external
-        payable
-        onlyStoreOwner(storeAddress)
-    {   
+    function makeSplitPayment(
+        address payable storeAddress,
+        address payable affiliateAddress,
+        string[] memory productNames
+    ) external payable {
+        //TODO: refactor this...duplicated from makePayment.
         uint256 totalPrice;
 
-        for (uint256 i; i<productNames.length; i++)
-        {
-            uint256 productIndex = getProductIndex(storeAddress, productNames[i]);
+        for (uint256 i; i < productNames.length; i++) {
+            uint256 productIndex = getProductIndex(
+                storeAddress,
+                productNames[i]
+            );
             uint256 price = stores[storeAddress]
                 ._storeProducts[productIndex]
                 ._price;
-            totalPrice+=price;
+            totalPrice += price;
+        }
+
+        require(msg.value == totalPrice, "Pay the right price!");
+
+        // Check affiliate address is linked to the store
+        uint256 affiliateIndex = getAffiliateIndex(
+            storeAddress,
+            affiliateAddress
+        );
+        uint256 toAffiliate = (msg.value *
+            stores[storeAddress]._commisionRate) / 100;
+        uint256 toStore = msg.value - toAffiliate;
+        storeAddress.transfer(toStore);
+        affiliateAddress.transfer(toAffiliate);
+        // Update balances for store and affiliate.
+        stores[storeAddress]._storeTotalValue += toStore;
+        stores[storeAddress]
+            ._storeAffiliates[affiliateIndex]
+            ._affiliateTotalValue += toAffiliate;
+
+        emit PaymentMade(msg.sender, storeAddress, productNames);
+    }
+
+    function processRefund(
+        address storeAddress,
+        string[] memory productNames,
+        address payable customer
+    ) external payable onlyStoreOwner(storeAddress) {
+        uint256 totalPrice;
+
+        for (uint256 i; i < productNames.length; i++) {
+            uint256 productIndex = getProductIndex(
+                storeAddress,
+                productNames[i]
+            );
+            uint256 price = stores[storeAddress]
+                ._storeProducts[productIndex]
+                ._price;
+            totalPrice += price;
         }
 
         require(msg.value == totalPrice, "Incorrect refund amount");
@@ -178,7 +263,6 @@ contract Funnel is Ownable {
         stores[storeAddress]._storeTotalValue -= msg.value;
 
         emit RefundMade(customer, storeAddress, productNames);
-
     }
 
     //=====================--------- PRODUCT FUNCTIONS ----------=====================
@@ -201,6 +285,9 @@ contract Funnel is Ownable {
         ProductType productType,
         uint256 price
     ) external onlyStoreOwner(storeAddress) {
+        //
+        /*TODO: add constraint: some mainproduct must be present before any other product type
+         can be added */
         Product memory product = Product(productName, productType, price);
 
         stores[storeAddress]._storeProducts.push(product);
@@ -258,14 +345,6 @@ contract Funnel is Ownable {
         uint256 productIndex = getProductIndex(storeAddress, productName);
         return stores[storeAddress]._storeProducts[productIndex]._productType;
     }
-    //TODO: DESIGN: what do we want to be able to do with product type?
-    /* 
-        presumably, we want things like:
-        - updating a product's type
-        right now we don't have relationships set up between products
-        i.e., i can say that product x is a main product and that product y is an upsell
-        but i can't say that y is an upsell for x.
-     */
 
     function updateProductPrice(
         address storeAddress,
@@ -278,4 +357,50 @@ contract Funnel is Ownable {
         emit ProductUpdated(storeAddress, productName, price);
     }
 
+    //=====================--------- AFFILIATE FUNCTIONS ----------=====================
+
+    function registerAffiliate(address affiliateAddress, address storeAddress)
+        external
+    {
+        Affiliate memory affiliate = Affiliate(affiliateAddress, 0);
+        stores[storeAddress]._storeAffiliates.push(affiliate);
+        emit AffiliateRegistered(storeAddress, affiliateAddress);
+    }
+
+    //TODO: refactor: duplicating getProductIndex
+    function getAffiliateIndex(address storeAddress, address affiliateAddress)
+        internal
+        view
+        returns (uint256)
+    {
+        for (uint256 i; i < stores[storeAddress]._storeAffiliates.length; i++) {
+            if (
+                stores[storeAddress]._storeAffiliates[i]._affiliateAddress ==
+                affiliateAddress
+            ) {
+                return i;
+            }
+        }
+        revert("Affiliate not found in store");
+    }
+
+    //TODO: add function for removing affiliates.
+
+    function getAffiliateBalance(address storeAddress, address affiliateAddress)
+        external
+        view
+        returns (uint256)
+    {
+        if (!(stores[storeAddress]._isStore)) {
+            revert("There's no store associated with that address");
+        }
+        uint256 affiliateIndex = getAffiliateIndex(
+            storeAddress,
+            affiliateAddress
+        );
+        return
+            stores[storeAddress]
+                ._storeAffiliates[affiliateIndex]
+                ._affiliateTotalValue;
+    }
 }
