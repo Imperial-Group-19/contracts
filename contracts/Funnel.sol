@@ -42,6 +42,7 @@ contract Funnel is Ownable {
         address payable _storeAddress;
         uint256 _storeTotalValue;
         Product[] _storeProducts;
+        bool _isStore;
     }
 
     struct Affiliate {
@@ -80,10 +81,16 @@ contract Funnel is Ownable {
         external
         returns (uint256)
     {
+        //CHECK if a store has already been created with storeAddress
+        if(!(stores[storeAddress]._isStore)){ //n.b. every possible key has a mapping by default.
+                                             // see https://ethereum.stackexchange.com/questions/13021/how-can-you-figure-out-if-a-certain-key-exists-in-a-mapping-struct-defined-insi
+            revert("There's already a store with that address.");
+        }
         Store storage store = stores[storeAddress];
         store._storeOwner = msg.sender;
         store._storeAddress = storeAddress;
         store._storeTotalValue = 0;
+        store._isStore = true;
 
         uint256 storeIndex = totalStores();
         noOfStores++;
@@ -102,6 +109,7 @@ contract Funnel is Ownable {
         store._storeTotalValue = stores[storeAddress]._storeTotalValue;
         store._storeOwner = stores[storeAddress]._storeOwner;
         store._storeProducts = stores[storeAddress]._storeProducts;
+        store._isStore = true;
 
         delete stores[storeAddress];
 
@@ -112,7 +120,7 @@ contract Funnel is Ownable {
         //currently only one admin
         //currently only they can remove store.
         delete stores[storeAddress];
-
+        noOfStores--;
         emit StoreRemoved(storeAddress);
     }
 
