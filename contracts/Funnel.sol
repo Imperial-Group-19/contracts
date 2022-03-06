@@ -10,6 +10,7 @@ pragma solidity ^0.8.0;
 import "@openzeppelin/contracts/access/Ownable.sol";
 // Import enum type that maps different product types to fixed constants.
 import "./EnumProductTypeDeclaration.sol";
+import "./ABDKMathQuad.sol"; // for safe math operations.
 
 //=====================--------- ITERATION TO-DOS:  ----------=====================
 
@@ -194,10 +195,27 @@ contract Funnel is Ownable {
         emit PaymentMade(msg.sender, storeAddress, productNames);
     }
 
+    //POSSIBLE SOURCES for affiliate payment splitting:
     // using https://ethereum.stackexchange.com/questions/114870/how-can-i-split-a-transaction-to-two-addresses-using-metamask
     // PaymentSplitter contract from OpenZepp is more robust but way more complicated.
     // there's also https://medium.com/coinmonks/implement-multi-send-on-ethereum-by-smart-contract-with-solidity-47e0bf82b60c
     //  as some middle ground.
+
+    //helper function for calculating amount owed to affiliate.
+    // NOTE: the affiliate's comission will be rounded down if the result is a fractional number.
+    //  see https://ethereum.stackexchange.com/questions/2987/how-can-i-represent-decimal-values-in-solidity 
+    function getAffiliateCut (uint256 sentAmount, uint256 commissionRate, uint256 base) public pure returns (uint) {
+        return
+            ABDKMathQuad.toUInt (
+                ABDKMathQuad.div (
+                    ABDKMathQuad.mul (
+                    ABDKMathQuad.fromUInt (sentAmount),
+                    ABDKMathQuad.fromUInt (commissionRate)
+                    ),
+                    ABDKMathQuad.fromUInt (base)
+                )
+            );
+    }
 
     function makeSplitPayment(
         address payable storeAddress,
@@ -225,8 +243,7 @@ contract Funnel is Ownable {
             storeAddress,
             affiliateAddress
         );
-        uint256 toAffiliate = (msg.value *
-            stores[storeAddress]._commisionRate) / 100;
+        uint256 toAffiliate = getAffiliateCut(msg.value, stores[storeAddress]._commisionRate, 100);
         uint256 toStore = msg.value - toAffiliate;
         storeAddress.transfer(toStore);
         affiliateAddress.transfer(toAffiliate);
