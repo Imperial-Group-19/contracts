@@ -3,14 +3,13 @@ pragma solidity ^0.8.0;
 
 //=====================--------- DEPLOYMENT TO-DOS:  ----------=====================
 
-//TODO: implement tests in Hardhat.
-//TODO: DEPLOY CONTRACT USING PROXY PATTERN.
-
-// Import from the OpenZeppelin Contracts library
 import "@openzeppelin/contracts/access/Ownable.sol";
-// Import enum type that maps different product types to fixed constants.
+// a Contract module that provides basic access control mechanism, where a specific
+// account is granted exclusive access to specific functions. (see onlyStoreOwner modifier)
 import "./EnumProductTypeDeclaration.sol";
-import "./ABDKMathQuad.sol"; // for safe math operations.
+// Import enum type that maps different product types to fixed constants.
+import "./ABDKMathQuad.sol"; 
+// For safe math operations.
 
 //=====================--------- ITERATION TO-DOS:  ----------=====================
 
@@ -97,8 +96,6 @@ contract Funnel is Ownable {
         return noOfStores;
     }
 
-    //TODO: implement transaction fee to deter spamming of this function.
-    // possibly: https://stackoverflow.com/questions/70146314/how-do-i-charge-a-transaction-fee-when-a-function-in-my-contract-is-executed
     function registerStore(address payable storeAddress, uint commisionRate)
         external
         returns (uint256)
@@ -195,15 +192,6 @@ contract Funnel is Ownable {
         emit PaymentMade(msg.sender, storeAddress, productNames);
     }
 
-    //POSSIBLE SOURCES for affiliate payment splitting:
-    // using https://ethereum.stackexchange.com/questions/114870/how-can-i-split-a-transaction-to-two-addresses-using-metamask
-    // PaymentSplitter contract from OpenZepp is more robust but way more complicated.
-    // there's also https://medium.com/coinmonks/implement-multi-send-on-ethereum-by-smart-contract-with-solidity-47e0bf82b60c
-    //  as some middle ground.
-
-    //helper function for calculating amount owed to affiliate.
-    // NOTE: the affiliate's comission will be rounded down if the result is a fractional number.
-    //  see https://ethereum.stackexchange.com/questions/2987/how-can-i-represent-decimal-values-in-solidity 
     function getAffiliateCut (uint256 sentAmount, uint256 commissionRate, uint256 base) public pure returns (uint) {
         return
             ABDKMathQuad.toUInt (
@@ -222,7 +210,6 @@ contract Funnel is Ownable {
         address payable affiliateAddress,
         string[] memory productNames
     ) external payable {
-        //TODO: refactor this...duplicated from makePayment.
         uint256 totalPrice;
 
         for (uint256 i; i < productNames.length; i++) {
@@ -283,7 +270,6 @@ contract Funnel is Ownable {
     }
 
     //=====================--------- PRODUCT FUNCTIONS ----------=====================
-    //TODO: REFACTORING. There's a ton of duplication in these functions.
     function totalProducts(address storeAddress) public view returns (uint256) {
         return stores[storeAddress]._storeProducts.length;
     }
@@ -302,9 +288,6 @@ contract Funnel is Ownable {
         ProductType productType,
         uint256 price
     ) external onlyStoreOwner(storeAddress) {
-        //
-        /*TODO: add constraint: some mainproduct must be present before any other product type
-         can be added */
         Product memory product = Product(productName, productType, price);
 
         stores[storeAddress]._storeProducts.push(product);
@@ -353,7 +336,6 @@ contract Funnel is Ownable {
         return stores[storeAddress]._storeProducts[productIndex]._price;
     }
 
-    //TODO: think about: do we need to check productType in a transaction?
     function getProductType(address storeAddress, string memory productName)
         external
         view
@@ -384,7 +366,6 @@ contract Funnel is Ownable {
         emit AffiliateRegistered(storeAddress, affiliateAddress);
     }
 
-    //TODO: refactor: duplicating getProductIndex
     function getAffiliateIndex(address storeAddress, address affiliateAddress)
         internal
         view
@@ -400,8 +381,6 @@ contract Funnel is Ownable {
         }
         revert("Affiliate not found in store");
     }
-
-    //TODO: add function for removing affiliates.
 
     function getAffiliateBalance(address storeAddress, address affiliateAddress)
         external
