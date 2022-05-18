@@ -7,14 +7,14 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 // a Contract module that provides basic access control mechanism, where a specific
 // account is granted exclusive access to specific functions. (see onlyStoreOwner modifier)
 import "./EnumProductTypeDeclaration.sol";
-<<<<<<< HEAD
 // Import enum type that maps different product types to fixed constants.
 import "./ABDKMathQuad.sol"; 
 // For safe math operations.
-=======
->>>>>>> parent of 585e8bf... Amended affiliate comission calculation to include ABDKMathQuad library. More robust
 
 //=====================--------- ITERATION TO-DOS:  ----------=====================
+//TODO: Implement more tests.
+//TODO: Deploy contract using OpenZepp Proxy Pattern.
+
 
 contract Funnel is Ownable {
     //=====================--------- EVENTS  ----------=====================
@@ -99,6 +99,8 @@ contract Funnel is Ownable {
         return noOfStores;
     }
 
+    //TODO: implement transaction fee to deter spamming of this function.
+    // possibly: https://stackoverflow.com/questions/70146314/how-do-i-charge-a-transaction-fee-when-a-function-in-my-contract-is-executed
     function registerStore(address payable storeAddress, uint commisionRate)
         external
         returns (uint256)
@@ -195,7 +197,20 @@ contract Funnel is Ownable {
         emit PaymentMade(msg.sender, storeAddress, productNames);
     }
 
-<<<<<<< HEAD
+    //POSSIBLE SOURCES for affiliate payment splitting:
+    // using https://ethereum.stackexchange.com/questions/114870/how-can-i-split-a-transaction-to-two-addresses-using-metamask
+    // PaymentSplitter contract from OpenZepp is more robust but way more complicated.
+    // there's also https://medium.com/coinmonks/implement-multi-send-on-ethereum-by-smart-contract-with-solidity-47e0bf82b60c
+    //  as some middle ground.
+
+    // using https://ethereum.stackexchange.com/questions/114870/how-can-i-split-a-transaction-to-two-addresses-using-metamask
+    // PaymentSplitter contract from OpenZepp is more robust but way more complicated.
+    // there's also https://medium.com/coinmonks/implement-multi-send-on-ethereum-by-smart-contract-with-solidity-47e0bf82b60c
+    //  as some middle ground.
+
+     //helper function for calculating amount owed to affiliate.
+    // NOTE: the affiliate's comission will be rounded down if the result is a fractional number.
+    //  see https://ethereum.stackexchange.com/questions/2987/how-can-i-represent-decimal-values-in-solidity
     function getAffiliateCut (uint256 sentAmount, uint256 commissionRate, uint256 base) public pure returns (uint) {
         return
             ABDKMathQuad.toUInt (
@@ -208,12 +223,6 @@ contract Funnel is Ownable {
                 )
             );
     }
-=======
-    // using https://ethereum.stackexchange.com/questions/114870/how-can-i-split-a-transaction-to-two-addresses-using-metamask
-    // PaymentSplitter contract from OpenZepp is more robust but way more complicated.
-    // there's also https://medium.com/coinmonks/implement-multi-send-on-ethereum-by-smart-contract-with-solidity-47e0bf82b60c
-    //  as some middle ground.
->>>>>>> parent of 585e8bf... Amended affiliate comission calculation to include ABDKMathQuad library. More robust
 
     function makeSplitPayment(
         address payable storeAddress,
@@ -281,6 +290,7 @@ contract Funnel is Ownable {
     }
 
     //=====================--------- PRODUCT FUNCTIONS ----------=====================
+    //TODO: REFACTORING. There's a ton of duplication in these functions.
     function totalProducts(address storeAddress) public view returns (uint256) {
         return stores[storeAddress]._storeProducts.length;
     }
