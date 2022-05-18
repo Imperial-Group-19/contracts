@@ -7,9 +7,12 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 // a Contract module that provides basic access control mechanism, where a specific
 // account is granted exclusive access to specific functions. (see onlyStoreOwner modifier)
 import "./EnumProductTypeDeclaration.sol";
+<<<<<<< HEAD
 // Import enum type that maps different product types to fixed constants.
 import "./ABDKMathQuad.sol"; 
 // For safe math operations.
+=======
+>>>>>>> parent of 585e8bf... Amended affiliate comission calculation to include ABDKMathQuad library. More robust
 
 //=====================--------- ITERATION TO-DOS:  ----------=====================
 
@@ -192,6 +195,7 @@ contract Funnel is Ownable {
         emit PaymentMade(msg.sender, storeAddress, productNames);
     }
 
+<<<<<<< HEAD
     function getAffiliateCut (uint256 sentAmount, uint256 commissionRate, uint256 base) public pure returns (uint) {
         return
             ABDKMathQuad.toUInt (
@@ -204,6 +208,12 @@ contract Funnel is Ownable {
                 )
             );
     }
+=======
+    // using https://ethereum.stackexchange.com/questions/114870/how-can-i-split-a-transaction-to-two-addresses-using-metamask
+    // PaymentSplitter contract from OpenZepp is more robust but way more complicated.
+    // there's also https://medium.com/coinmonks/implement-multi-send-on-ethereum-by-smart-contract-with-solidity-47e0bf82b60c
+    //  as some middle ground.
+>>>>>>> parent of 585e8bf... Amended affiliate comission calculation to include ABDKMathQuad library. More robust
 
     function makeSplitPayment(
         address payable storeAddress,
@@ -230,7 +240,8 @@ contract Funnel is Ownable {
             storeAddress,
             affiliateAddress
         );
-        uint256 toAffiliate = getAffiliateCut(msg.value, stores[storeAddress]._commisionRate, 100);
+        uint256 toAffiliate = (msg.value *
+            stores[storeAddress]._commisionRate) / 100;
         uint256 toStore = msg.value - toAffiliate;
         storeAddress.transfer(toStore);
         affiliateAddress.transfer(toAffiliate);
